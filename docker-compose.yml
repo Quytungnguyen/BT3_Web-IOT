@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: iotdb
+      MYSQL_USER: iotuser
+      MYSQL_PASSWORD: iotpass
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: mariadb
+      PMA_USER: root
+      PMA_PASSWORD: root
+    ports:
+      - "8081:80"
+    depends_on:
+      - mariadb
+
+  node-red:
+    image: nodered/node-red:latest
+    container_name: node-red
+    restart: always
+    ports:
+      - "1881:1880"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+    volumes:
+      - node_red_data:/data
+    command: >
+      bash -c "cd /data &&
+               npm install node-red-node-mysql --unsafe-perm --no-fund --no-audit &&
+               npm start"
+
+  influxdb:
+    image: influxdb:1.8
+    container_name: influxdb
+    restart: always
+    ports:
+      - "8087:8086"
+    environment:
+      - INFLUXDB_DB=iotdata
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=admin123
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - influxdb
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: always
+    ports:
+      - "8088:80"
+      - "4443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - phpmyadmin
+      - node-red
+      - grafana
+      - influxdb
+
+volumes:
+  mariadb_data:
+  node_red_data:
+  influxdb_data:
+  grafana_data:

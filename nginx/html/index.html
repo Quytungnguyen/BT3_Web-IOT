@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>IoT Dashboard</title>
+  <style>
+    body { font-family: sans-serif; margin: 40px; }
+    #dataList { list-style: none; padding-left: 0; }
+    #dataList li { margin-bottom: 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+    button { margin-top: 10px; padding: 5px 10px; font-size: 1em; }
+  </style>
+</head>
+<body>
+  <h2>IoT Dashboard</h2>
+
+  <button onclick="loadData()">Load Latest</button>
+  <ul id="dataList">
+    <li>Chưa có dữ liệu</li>
+  </ul>
+
+  <script>
+    const API = "/nodered/api/latest"; // Node-RED API qua Nginx proxy
+
+    // Lưu dữ liệu đã fetch vào mảng local
+    let allData = [];
+
+    async function loadData(){
+      try {
+        const res = await fetch(API);
+        const data = await res.json();
+        if(data.length > 0){
+          const latest = data[0]; // MySQL query trả bản mới nhất
+          
+          // Thêm vào danh sách nếu chưa có
+          const exists = allData.some(d => d.id === latest.id);
+          if(!exists){
+            allData.unshift(latest); // thêm lên đầu
+          }
+
+          renderList();
+        }
+      } catch(e){
+        console.error("Không load được API", e);
+      }
+    }
+
+    function renderList(){
+      const ul = document.getElementById("dataList");
+      ul.innerHTML = "";
+      if(allData.length === 0){
+        ul.innerHTML = "<li>Chưa có dữ liệu</li>";
+      } else {
+        allData.forEach(d => {
+          const li = document.createElement("li");
+          li.innerText = `#${d.id} | Temp: ${d.temperature}°C | Hum: ${d.humidity}% | ${d.created_at}`;
+          ul.appendChild(li);
+        });
+      }
+    }
+
+    // Load dữ liệu ngay khi mở trang
+    loadData();
+    // Tùy chọn: tự load lại mỗi 5s
+    setInterval(loadData, 5000);
+  </script>
+</body>
+</html>
